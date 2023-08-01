@@ -4,6 +4,12 @@ from django.shortcuts import render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from .forms import NewUserForm
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework import permissions
+from .serializers import  MovieSerializer
+
 
 # HINT: Create a view to provide movie recommendations list for the HTML template
 
@@ -50,17 +56,54 @@ def generate_movies_context():
     context['movie_list'] = movies
     return context
 
-def register_request(request):
-	if request.method == "POST":
-		form = NewUserForm(request.POST)
-		if form.is_valid():
-			user = form.save()
-			login(request, user)
-			messages.success(request, "Registration successful." )
-			return redirect("main:homepage")
-		messages.error(request, "Unsuccessful registration. Invalid information.")
-	form = NewUserForm()
-	return render (request=request, template_name="movierecommender/register.html", context={"register_form":form})
+class MovieListApiView(APIView):
+
+    # List all watched movies
+    def get(self, request, *args, **kwargs):
+        """List all top voted movie items for a user"""
+        movies = Movie.objects.all(
+        ).order_by('-vote_count')[:30]
+        serializer = MovieSerializer(movies, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class UserMovieListApiView(APIView):
+    #  check if user is authenticated
+    permission_classes = permissions.IsAuthenticated
+
+    def get(self, request, *args, **kwargs):
+        """List all recommended movies for user"""
+        # Get recommended movie counts
+        recommended_count = Movie.objects.filter(
+            recommended=True
+        ).count()
+        # If there are no recommended movies
+        if recommended_count == 0:
+        # Just return the top voted and unwatched movies as popular ones
+            movies = Movie.objects.filter(
+                watched=False
+            ).order_by('-vote_count')[:30]
+        else:
+            # Get the top rated, unwatched, and recommended movies
+            movies = Movie.objects.filter(
+                watched=False
+            ).filter(
+                recommended=True
+            ).order_by('-vote_average')[:30]
+        serializer = MovieSerializer(movies, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+# def register_request(request):
+# 	if request.method == "POST":
+# 		form = NewUserForm(request.POST)
+# 		if form.is_valid():
+# 			user = form.save()
+# 			login(request, user)
+# 			messages.success(request, "Registration successful." )
+# 			return redirect("main:homepage")
+# 		messages.error(request, "Unsuccessful registration. Invalid information.")
+# 	form = NewUserForm()
+# 	return render (request=request, template_name="movierecommender/register.html", context={"register_form":form})
 
 def logout_view(request):
     # Logout the user

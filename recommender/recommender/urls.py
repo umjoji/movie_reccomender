@@ -20,7 +20,7 @@ from django.views.generic import RedirectView
 urlpatterns = [
     path('', RedirectView.as_view(url='movierecommender/', permanent=True)),
     path('admin/', admin.site.urls),
-    path('movierecommender/', include('movierecommender.urls'))
+    path('movierecommender/', include('movierecommender.urls')),
 ]
 
 urlpatterns += [
